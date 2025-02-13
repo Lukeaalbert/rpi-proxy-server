@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <string>
+#include <memory>
 
 class Cache {
     public:
@@ -13,7 +14,7 @@ class Cache {
 
     void randomRemove();
 
-    void refresh();
+    // void refresh();
 
     std::string get(const std::string& url);
 
@@ -26,7 +27,7 @@ class Cache {
         };
 
         long mCacheStaleness;
-        std::unordered_map<std::string, CachedHttpResponse> mCache;
+        std::unordered_map<std::string, std::unique_ptr<CachedHttpResponse> > mCache;
 };
 
 #endif //CACHE_H

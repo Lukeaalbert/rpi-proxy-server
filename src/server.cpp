@@ -89,9 +89,20 @@ void ProxyServer::runServer() {
         std::cout << "connection established with client at " << clientIp << ".\n";
 
         request = getHttpRequest(clientFd);
+        if (!request.empty()) {
+            // DELETE ME! just here for testing.
+            std::cout << request << std::endl;
+        }
 
-        // DELETE ME! just here for testing.
-        std::cout << request << std::endl;
+        // 1) parse requested url
+        // 2) send HEAD request to url to see if data has been updated
+        // 3) check for membership of data in cache
+            // IF membership found AND no updates to data
+                // send cached data as a responses
+            // ELSE
+                // get data on behalf of client
+                // send data to client
+                // save data in cache
         
         // Do something with request, send repsonse like the following format:
 
@@ -116,7 +127,7 @@ std::string ProxyServer::getHttpRequest(int clientFd) {
     if (bytes_received < 0) {
         perror("error reading request.");
         close(clientFd);
-        return;
+        return std::string();
     }
 
     return std::string(buffer);

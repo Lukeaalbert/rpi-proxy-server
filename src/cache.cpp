@@ -1,6 +1,7 @@
 #include <iostream>
 #include <random>
 #include <string>
+#include <memory>
 
 #include "cache.h"
 
@@ -23,11 +24,12 @@ Cache::Cache(long cacheStaleness): mCacheStaleness(cacheStaleness) {}
 std::string Cache::get(const std::string& url) {
     auto it = mCache.find(url);
     if (it != mCache.end()) {
-        return it -> second.content;
+        return it -> second -> content;
     }
     return std::string();
 }
 
+/*
 void Cache::refresh() {
     auto it = mCache.begin();
     while (it != mCache.end()) {
@@ -40,9 +42,10 @@ void Cache::refresh() {
         }
     }
 }
+*/
 
 void Cache::insert(const std::string& url, const std::string& content) {
-    CachedHttpResponse chr(content);
-    mCache.emplace(url, chr);
-    mCache[url].staleness = 0;
+    std::unique_ptr<CachedHttpResponse> cachedResponse = std::make_unique<CachedHttpResponse>(content);
+    mCache.emplace(url, std::move(cachedResponse));
+    mCache[url] -> staleness = 0;
 }
