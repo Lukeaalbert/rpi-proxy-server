@@ -5,28 +5,28 @@
 #include <string>
 #include <memory>
 
+struct CachedHttpResponse {
+    CachedHttpResponse(const std::string h, const std::string c, const std::string lm):
+        header(h), content(c), lastModified(lm) {}
+    std::string header;
+    std::string content;
+    std::string lastModified;
+};
+
 class Cache {
     public:
 
-    Cache(long cacheStaleness);
+    void insert(const std::string& url, const std::string& header, const std::string& content,
+        const std::string& lastModified);
 
-    void insert(const std::string& url, const std::string& content);
+    CachedHttpResponse* get(const std::string& url);
 
-    void randomRemove();
+    void remove(size_t amountToRemove);
 
-    // void refresh();
-
-    std::string get(const std::string& url);
+    void clear();
 
     private:
 
-        struct CachedHttpResponse {
-            CachedHttpResponse(const std::string c): content(c), staleness(0) {}
-            std::string content;
-            int staleness;
-        };
-
-        long mCacheStaleness;
         std::unordered_map<std::string, std::unique_ptr<CachedHttpResponse> > mCache;
 };
 

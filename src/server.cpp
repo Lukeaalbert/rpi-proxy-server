@@ -52,12 +52,6 @@ namespace {
             }
         }
         line = s;
-        {
-            if (PRINT_MESSAGES) {
-                std::cout << "\t" << line;
-                std::cout.flush();
-            }
-        }
         return idx;
     }
 }
@@ -98,133 +92,12 @@ void ProxyServer::startServer() {
     }
 }
 
-std::string ProxyServer::getHttpRequest(int clientFd, std::string& method, 
-    std::string& uri, std::string& host)
-{
-    std::string line;
-    std::string request = std::string();
-    std::string method;
-
-    // read in the first line of the request header
-    int bytes_received = readALine(clientFd, line);
-    // returning empty string because this should always work
-    if (bytes_received == -1) {
-        return std::string();
-    }
-    // get method, uri, and version.
-    std::istringstream request_stream(line);
-    request_stream >> method >> uri;
-
-    request += '\t' + line;
-
-    // loop to handle all bytes of single request
-    while (true) {
-        // read in a line of the request header
-        int bytes_received = readALine(clientFd, line);
-        // readALine returns -1
-        if (bytes_received == -1) {
-            return request;
-        }
-        if (line.substr(0, 5) == "Host:") {
-            int idx = 5;
-            // strip whitespace
-            while (idx < line.size() && line[idx] == ' ') {
-                idx++;
-            }
-            if (idx != line.size() - 1) {
-                host = line.substr(idx);
-            }
-        }
-        // build the entire request string (request)
-        request += "\t" + line;
-       // end of request headers
-        if (bytes_received == 2 && line == "\r\n") {
-            return request;
-        }
-        // clear line for next line
-        line.clear();
-    }
-
-}
-
-std::string ProxyServer::getLastModifiedDate(const std::string& host, const std::string& port, const std::string& uri) {
-    // Create a socket
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        std::cerr << "Error opening socket" << std::endl;
-        return;
-    }
-
-    // Get the server address info
-    struct hostent* server = gethostbyname(host.c_str());
-    if (server == NULL) {
-        std::cerr << "No such host " << host << "." << std::endl;
-        close(sockfd);
-        return;
-    }
-
-    // set up the server address structure
-    struct sockaddr_in server_addr;
-    bzero((char*)&server_addr, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    bcopy((char*)server->h_addr, (char*)&server_addr.sin_addr.s_addr, server->h_length);
-    server_addr.sin_port = htons(std::stoi(port));
-
-    // connect to the server
-    if (connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-        std::cerr << "Error connecting to server" << std::endl;
-        close(sockfd);
-        return;
-    }
-
-    // prepare the HTTP HEAD request
-    std::string request = "HEAD " + uri + " HTTP/1.1\r\n";
-    request += "Host: " + host + "\r\n";
-    request += "Connection: close\r\n";
-    request += "\r\n";
-
-    // send the request
-    int bytes_sent = send(sockfd, request.c_str(), request.length(), 0);
-    if (bytes_sent < 0) {
-        std::cerr << "error sending request" << std::endl;
-        close(sockfd);
-        return;
-    }
-
-    // read the response
-    std::string line;
-    std::string lastModified = std::string();
-    int bytes_received;
-    while ((bytes_received = readALine(sockfd, line)) != -1) {
-        if (line.substr(0, 14) == "Last-Modified:") {
-            int idx = 14;
-            // strip whitespace
-            while (idx < line.size() && line[idx] == ' ') {
-                idx++;
-            }
-            if (idx != line.size() - 1) {
-                lastModified = line.substr(idx);
-            }
-        }
-        if (PRINT_MESSAGES) {
-            std::cout << line << std::endl;
-        }
-    }
-
-    if (bytes_received < 0) {
-        std::cerr << "Error receiving response" << std::endl;
-    }
-
-    // close the socket
-    close(sockfd);
-
-    return lastModified;
-}
-
 void ProxyServer::runServer() {
 
     char clientIp[INET_ADDRSTRLEN];
-    std::string request;
+    std::string clientRequest;
+    std::string headerResponse;
+    std::string requestedData;
     std::string method, host, uri;
 
     while (true) {
@@ -239,51 +112,262 @@ void ProxyServer::runServer() {
 
         // get ip address
         inet_ntop(AF_INET, &client_addr.sin_addr, clientIp, INET_ADDRSTRLEN);
-
         if (PRINT_MESSAGES) {
-            std::cout << "connection established with client at " << clientIp << ".\n";
+            std::cout << "connection established with client at " << clientIp << ".\n\n";
         }
 
-        request = getHttpRequest(clientFd, method, host, uri);
-
-        if (request.empty() || method.empty() || host.empty() || uri.empty()) {
+        // get the request from the client, check for errors
+        clientRequest = parseClientHttpRequest(clientFd, method, uri, host);
+        if (clientRequest.empty() || method.empty() || host.empty() || uri.empty()) {
             std::cerr << "error with request header at " << clientIp << ". skipping...";
             continue;
         }
         if (PRINT_MESSAGES) {
-            std::cout << "Received request: " << request << std::endl;
+            std::cout << "Request received: \n" << clientRequest;
         }
 
+        // get the cached data if it exists and the last modified date via a head request
+        CachedHttpResponse* chr = mCache.get(host + uri);
         std::string lastModifiedDate = getLastModifiedDate(host, "80", uri);
+        // IF data exists in cache and it hasn't been modified...
+        if (chr != nullptr && lastModifiedDate == chr -> lastModified) {
+            writeHttpResponseToClient(clientFd, chr -> header, chr -> content);
+        } // Otherwise
+        else {
+            requestedData = makeGetRequest(host, "80", uri, headerResponse);
+            writeHttpResponseToClient(clientFd, headerResponse, requestedData);
+            mCache.insert(host+uri, headerResponse, requestedData, lastModifiedDate);
+        }
 
-        // 1) parse requested url
-        // 2) check for membership of data in cache
-            // IF membership found
-                // send HEAD request to url to see if data has been updated
-                    // IF data has been updated
-                        // get data on behalf of client
-                        // send data to client
-                        // update data in cache
-                    // ELSE
-                        // send cached data as a responses
-            // ELSE
-                // get data on behalf of client
-                // send data to client
-                // save data in cache
-        
-        // Do something with request, send repsonse like the following format:
-
-        // const char* response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello, Raspberry Pi!";
-        // send(clientFd, response, strlen(response), 0);
-
+        // close client socket and clear stuff
         method.clear();
         host.clear();
         uri.clear();
-        // then, remember to shutdown and close client.
-        // shutdown(client_socket_fd, SHUT_RDWR);
-        // close(client_socket_fd);
+        headerResponse.clear();
+        clientRequest.clear();
+        if (PRINT_MESSAGES) {
+            std::cout << "Closing client connection" << std::endl;
+        }
+        shutdown(clientFd, SHUT_RDWR);
+        close(clientFd);
     }
         
     close(mServerFd);
 }
 
+
+std::string ProxyServer::parseClientHttpRequest(int clientFd, std::string& method, 
+    std::string& uri, std::string& host) {
+    std::string line;
+    std::string request = std::string();
+
+    // read in the first line of the request header
+    int bytes_received = readALine(clientFd, line);
+    if (bytes_received == -1) {
+        return std::string();
+    }
+
+    // get method, full_uri
+    std::string full_uri;
+    std::istringstream request_stream(line);
+    request_stream >> method >> full_uri;
+
+    // parse the full URI to get host and path
+    if (full_uri.substr(0, 7) == "http://") {
+        size_t host_start = 7;
+        size_t host_end = full_uri.find('/', host_start);
+        if (host_end != std::string::npos) {
+            host = full_uri.substr(host_start, host_end - host_start);
+            uri = full_uri.substr(host_end);
+        } else {
+            host = full_uri.substr(host_start);
+            uri = "/";
+        }
+    }
+
+    request += '\t' + line;
+
+    while (true) {
+        bytes_received = readALine(clientFd, line);
+        if (bytes_received == -1) {
+            return request;
+        }
+        request += "\t" + line;
+        if (bytes_received == 2 && line == "\r\n") {
+            return request;
+        }
+        line.clear();
+    }
+}
+
+std::string ProxyServer::getLastModifiedDate(const std::string& host, const std::string& port, const std::string& uri) {
+    if (PRINT_MESSAGES) {
+        std::cout << "Making HEAD request to host: " << host << " uri: " << uri << std::endl << std::endl;
+    }
+
+    // 1) open outgoing socket
+    int outgoingFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (outgoingFd == -1) {
+        std::cerr << "Failed to create outgoing socket" << std::endl << std::endl;
+        return std::string();
+    }
+
+    // 2) create host struct
+    struct hostent* host_entry = gethostbyname(host.c_str());
+    if (!host_entry) {
+        std::cerr << "Failed to resolve host: " << host << std::endl << std::endl;
+        close(outgoingFd);
+        return std::string();
+    }
+
+    // 3) create server address struct
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(std::stoi(port));
+    memcpy(&server_addr.sin_addr, host_entry->h_addr_list[0], host_entry->h_length);
+
+    // 4) connect to the outgoing host
+    if (connect(outgoingFd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        std::cerr << "Failed to connect to target server" << std::endl << std::endl;
+        close(outgoingFd);
+        return std::string();
+    }
+
+    // 5) build and send request
+    std::string request = "HEAD " + uri + " HTTP/1.1\r\n"
+                         "Host: " + host + "\r\n"
+                         "Connection: close\r\n\r\n";
+    if (PRINT_MESSAGES) {
+        std::cout << "Sending request:\n" << request;
+    }
+    send(outgoingFd, request.c_str(), request.length(), 0);
+
+    // 6) read response header
+    std::string responseHeader = readHttpHeader(outgoingFd);
+
+    // 7) get last modified date
+    std::string lastModDate;
+    std::string searchStr = "Last-Modified:";
+    auto idx = responseHeader.find(searchStr);
+    if (idx != std::string::npos) {
+        size_t dateStart = idx + searchStr.length() + 1;
+        size_t dateEnd = responseHeader.find("\r\n", dateStart);
+        if (dateEnd != std::string::npos) {
+            lastModDate = responseHeader.substr(dateStart, dateEnd - dateStart);
+        }
+    }
+
+    close(outgoingFd);
+    return lastModDate;
+}
+
+
+std::string ProxyServer::makeGetRequest(const std::string& host, const std::string& port, 
+    const std::string& uri, std::string& responseHeader) {
+    if (PRINT_MESSAGES) {
+        std::cout << "Making GET request to host: " << host << " uri: " << uri << std::endl << std::endl;
+    }
+
+    // 1) open outgoing socket
+    int outgoingFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (outgoingFd == -1) {
+        std::cerr << "Failed to create outgoing socket" << std::endl << std::endl;
+        return std::string();
+    }
+
+    // 2) create host struct
+    struct hostent* host_entry = gethostbyname(host.c_str());
+    if (!host_entry) {
+        std::cerr << "Failed to resolve host: " << host << std::endl << std::endl;
+        close(outgoingFd);
+        return std::string();
+    }
+
+    // 3) create server address struct
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(std::stoi(port));
+    memcpy(&server_addr.sin_addr, host_entry->h_addr_list[0], host_entry->h_length);
+
+    // 4) connect to the outgoing host
+    if (connect(outgoingFd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        std::cerr << "Failed to connect to target server" << std::endl << std::endl;
+        close(outgoingFd);
+        return std::string();
+    }
+
+    // 5) build and send request
+    std::string request = "GET " + uri + " HTTP/1.1\r\n"
+                         "Host: " + host + "\r\n"
+                         "Connection: close\r\n\r\n";
+    if (PRINT_MESSAGES) {
+        std::cout << "Sending request:\n" << request;
+    }
+    send(outgoingFd, request.c_str(), request.length(), 0);
+
+    // 6) read response header
+    responseHeader = readHttpHeader(outgoingFd);
+
+    // 7) read response data
+    std::string response;
+    int bytes_received;
+    char buffer[1024];
+    while ((bytes_received = read(outgoingFd, buffer, sizeof(buffer))) > 0) {
+        response.append(buffer, bytes_received);
+    }
+
+    close(outgoingFd);
+    return response;
+}
+
+bool ProxyServer::writeHttpResponseToClient(int client_fd, const std::string& headers,
+    const std::string& data) {
+
+    size_t total_bytes_written = 0;
+    size_t header_length = headers.length();
+    size_t data_length = data.length();
+
+    // 1) write the headers
+    while (total_bytes_written < header_length) {
+        int data_bytes = write(client_fd, headers.c_str() + total_bytes_written, header_length - total_bytes_written);
+        if (data_bytes <= 0) {
+            // error or connection closed
+            return false;
+        }
+        total_bytes_written += data_bytes;
+    }
+
+    if (PRINT_MESSAGES) {
+        std::cout << "Sending to client: \n" << headers;
+    }
+
+    // 2) write the actual data
+    total_bytes_written = 0;
+
+    while (total_bytes_written < data_length) {
+        int data_bytes = write(client_fd, data.c_str() + total_bytes_written, data_length - total_bytes_written);
+        if (data_bytes <= 0) {
+            // error or connection closed
+            return false;
+        }
+        total_bytes_written += data_bytes;
+    }
+    return true;
+}
+
+
+std::string ProxyServer::readHttpHeader(int outgoingFd) {
+    int bytes_received;
+    std::string responseHeader = std::string();
+    std::string line;
+    while ((bytes_received = readALine(outgoingFd, line)) != -1) {
+        if (bytes_received == 2 && line == "\r\n") {
+            responseHeader += "\r\n";
+            break;
+        }
+        responseHeader += line;
+    }
+    return responseHeader;
+}
