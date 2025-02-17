@@ -15,7 +15,14 @@ class ProxyServer {
     void runServer();
     
     private:
-    std::string getHttpRequest(int clientFd);
+
+    // gets http request in string format from client fd.
+    // also populates method, uri, and host. 
+    std::string getHttpRequest(int clientFd, std::string& method, 
+        std::string& uri, std::string& host);
+    
+    std::string getLastModifiedDate(const std::string& host, const std::string& port,
+        const std::string& uri);
 
     size_t mPort;
     int mServerFd;
