@@ -14,6 +14,19 @@ class Cache {
 
     void Cache::insert(const std::string& url, const std::string& header, const std::string& content, 
         const std::string& lastModified) {
+        
+        // **********************
+        // *** IMPORTANT NOTE *** 
+        // **********************
+        // 454 is an arbitrary number that was picked for the
+        // rpi 3 with 2GB of RAM. I assumed each cached entry 
+        // costed around 2.2MB and wanted to keep the cache under
+        // 1GB, and 2.2MB * 454 = about 1GB.
+        // Change at your discretion. 
+        if (mLru.size() >= 454) {
+            // TODO: erase some amount from cache and lru 
+        }
+
         auto it = mCache.find(url);
         if (it != mCache.end()) {
             return;
@@ -35,15 +48,11 @@ class Cache {
     }
 
     void remove(size_t amountToRemove) {
-        for (size_t i = 0; i < amountToRemove; ++i) {
-            mLru.pop();
-        }
+        // TODO
     }
 
     void clear() {
-        while (!mLru.isEmpty()) {
-            mLru.pop();
-        }
+       // TODO
     }
 
     private:
