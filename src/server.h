@@ -4,7 +4,7 @@
 #include <string>
 #include <stddef.h>
 
-#include "cache.h"
+#include "cache.hpp"
 
 class ProxyServer {
     public:
