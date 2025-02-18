@@ -1,7 +1,13 @@
 #ifndef LRU_HPP
 #define LRU_HPP
 
-#include "cachedResponse.h" 
+struct LruEntry {
+    LruEntry(std::string u, LruEntry* p, LruEntry* n):
+        uri(u), next(n), prev(p) {}
+    std::string uri;
+    LruEntry* next;
+    LruEntry* prev;
+};
 
 class LRU {
 
@@ -9,39 +15,50 @@ class LRU {
 
     LRU(): mHead(nullptr), mTail(nullptr), mSize(0) {}
 
-    void push(CachedHttpResponse* data) {
+    ~LRU() {
+        LruEntry* curr = mHead;
+        while (curr != nullptr) {
+            LruEntry* next = curr -> next;
+            delete curr;
+            curr = next;
+        }
+    }
+
+    void push(std::string uri) {
         // empty lru
         if (mHead == nullptr && mTail == nullptr) {
-            mHead = data;
-            mTail = data;
+            LruEntry* newEntry = new LruEntry(uri, nullptr, nullptr);
+            mHead = newEntry;
+            mTail = newEntry;
             ++mSize;
         }
         else { // non empty lru
-            mTail -> nextInLru = data;
-            mTail = data;
+            LruEntry* newEntry = new LruEntry(uri, mTail, nullptr);
+            mTail -> next = newEntry;
+            mTail = newEntry;
             ++mSize;
         }
     }
 
-    CachedHttpResponse* pop() {
+    void pop() {
         // empty lru
         if (mHead == nullptr || mTail == nullptr) {
-            return nullptr;
+            return;
         }
         else { // non empty lru
-            CachedHttpResponse* toReturn = mHead;
-            mHead = mHead -> nextInLru;
+            LruEntry* toDelete = mHead;
+            mHead = mHead -> next;
             if (mHead == nullptr) {
                 mTail = nullptr;
             } else {
-                mHead -> prevInLru = nullptr;
+                mHead -> prev = nullptr;
             }
             --mSize;
-            return toReturn;
+            delete toDelete;
         }
     }
 
-    CachedHttpResponse* front() {
+    LruEntry* front() {
         // empty lru
         if (mHead == nullptr || mTail == nullptr) {
             return nullptr;
@@ -51,32 +68,33 @@ class LRU {
         }
     }
 
-    void remove(CachedHttpResponse* data) {
+    void remove(LruEntry* data) {
         // empty lru
         if (mHead == nullptr || mTail == nullptr) {
             return;
         }
         else if (data == mHead) {
-            mHead = mHead -> nextInLru;
+            mHead = mHead -> next;
             if (mHead != nullptr) {
-                mHead -> prevInLru = nullptr;
+                mHead -> prev = nullptr;
             } else {
                 mTail = nullptr;
             }
             --mSize;
         }
         else if (data == mTail) {
-            mTail = mTail -> prevInLru;
+            mTail = mTail -> prev;
             if (mTail != nullptr) {
-                mTail -> nextInLru = nullptr;
+                mTail -> next = nullptr;
             }
             --mSize;
         }
         else {
-            data -> prevInLru -> nextInLru = data -> nextInLru;
-            data -> nextInLru -> prevInLru = data -> prevInLru;
+            data -> prev -> next = data -> next;
+            data -> next -> prev = data -> prev;
             --mSize;
         }
+        delete data;
     }
 
     bool isEmpty() {
@@ -87,9 +105,13 @@ class LRU {
         return mSize;
     }
 
+    LruEntry* tail(){
+        return mTail;
+    }
+
     private:
-        CachedHttpResponse* mHead;
-        CachedHttpResponse* mTail;
+        LruEntry* mHead;
+        LruEntry* mTail;
         size_t mSize;
 };
 

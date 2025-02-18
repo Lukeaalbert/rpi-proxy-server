@@ -6,13 +6,13 @@
 #include <string>
 #include <memory>
 
-#include "LRU.hpp"
+#include "cachedResponse.h"
 
 class Cache {
     
     public:
 
-    void Cache::insert(const std::string& url, const std::string& header, const std::string& content, 
+    void insert(const std::string& url, const std::string& header, const std::string& content, 
         const std::string& lastModified) {
         
         // **********************
@@ -24,7 +24,7 @@ class Cache {
         // 1GB, and 2.2MB * 454 = about 1GB.
         // Change at your discretion. 
         if (mLru.size() >= 454) {
-            // TODO: erase some amount from cache and lru 
+            remove(150);
         }
 
         auto it = mCache.find(url);
@@ -33,26 +33,28 @@ class Cache {
         }
         std::unique_ptr<CachedHttpResponse> cachedResponse = 
             std::make_unique<CachedHttpResponse>(header, content, lastModified);
-        mLru.push(cachedResponse.get());
+        mLru.push(url);
+        cachedResponse -> lruEntry =  mLru.tail();
         mCache.emplace(url, std::move(cachedResponse));
-    }   
+    }
 
-    CachedHttpResponse* Cache::get(const std::string& url) {
+    CachedHttpResponse* get(const std::string& url) {
         auto it = mCache.find(url);
         if (it != mCache.end()) {
-            mLru.remove(it -> second.get());
-            mLru.push(it -> second.get());
+            mLru.remove(it -> second -> lruEntry);
+            mLru.push(url);
+            it -> second -> lruEntry = mLru.tail();
             return it -> second.get();
         }
         return nullptr;
     }
 
     void remove(size_t amountToRemove) {
-        // TODO
-    }
-
-    void clear() {
-       // TODO
+        for (int i = 0; i < amountToRemove; i++) {
+            LruEntry* toRemove = mLru.front();
+            mCache.erase(toRemove -> uri);
+            mLru.pop();
+        }
     }
 
     private:
