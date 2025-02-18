@@ -6,7 +6,7 @@ TEST(CacheTest, InsertAndRetrieve) {
     
     cache.insert("http://example.com", "header1", "content1", "lastModified1");
 
-    CachedHttpResponse* response = cache.get("http://example.com");
+    CacheItem* response = cache.get("http://example.com");
 
     // ensure response is not null
     ASSERT_NE(response, nullptr);
@@ -24,7 +24,7 @@ TEST(CacheTest, InsertRetrieveMany) {
     cache.insert("http://example3.com", "header3", "content3", "lastModified3");
     cache.insert("http://example4.com", "header4", "content4", "lastModified4");
 
-    CachedHttpResponse* response = cache.get("http://example3.com");
+    CacheItem* response = cache.get("http://example3.com");
     ASSERT_NE(response, nullptr);
     ASSERT_EQ(response-> header, "header3");
     ASSERT_EQ(response-> content, "content3");
@@ -51,7 +51,7 @@ TEST(CacheTest, InsertRetrieveAndRemoveMany) {
     cache.insert("http://example3.com", "header3", "content3", "lastModified3");
     cache.insert("http://example4.com", "header4", "content4", "lastModified4");
 
-    CachedHttpResponse* response = cache.get("http://example3.com");
+    CacheItem* response = cache.get("http://example3.com");
     ASSERT_NE(response, nullptr);
     ASSERT_EQ(response-> header, "header3");
     ASSERT_EQ(response-> content, "content3");
@@ -106,7 +106,7 @@ TEST(CacheTest, InsertMaxAndRemoveMany) {
 
     // should resize and delete 150 first entries, resulting in
     // the front being item 150.
-    CachedHttpResponse* response = cache.get("http://example.com150");
+    CacheItem* response = cache.get("http://example.com150");
 
     ASSERT_NE(response, nullptr);
     ASSERT_EQ(response-> header, "header150");

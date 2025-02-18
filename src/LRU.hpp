@@ -58,16 +58,6 @@ class LRU {
         }
     }
 
-    LruEntry* front() {
-        // empty lru
-        if (mHead == nullptr || mTail == nullptr) {
-            return nullptr;
-        }
-        else { // non empty lru
-            return mHead;
-        }
-    }
-
     void remove(LruEntry* data) {
         // empty lru
         if (mHead == nullptr || mTail == nullptr) {
@@ -97,16 +87,20 @@ class LRU {
         delete data;
     }
 
-    bool isEmpty() {
-        return (mHead == nullptr && mTail == nullptr);
-    }
-
     size_t size() {
         return mSize;
     }
 
-    LruEntry* tail(){
+    LruEntry* front() {
+        return mHead;
+    }
+
+    LruEntry* back(){
         return mTail;
+    }
+    
+    bool isEmpty() {
+        return (mHead == nullptr && mTail == nullptr);
     }
 
     private:

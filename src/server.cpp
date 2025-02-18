@@ -127,7 +127,7 @@ void ProxyServer::runServer() {
         }
 
         // get the cached data if it exists and the last modified date via a head request
-        CachedHttpResponse* chr = mCache.get(host + uri);
+        CacheItem* chr = mCache.get(host + uri);
         std::string lastModifiedDate = getLastModifiedDate(host, "80", uri);
         // IF data exists in cache
         if (chr != nullptr) {
@@ -137,9 +137,9 @@ void ProxyServer::runServer() {
                 requestedData = makeGetRequest(host, "80", uri, headerResponse);
                 writeHttpResponseToClient(clientFd, headerResponse, requestedData);
                 // edit data in cache to reflect these changes
-                chr -> lastModified = lastModifiedDate;
-                chr -> header = headerResponse;
-                chr -> content = requestedData; // TODO: look into how to avoid this copy constructor overhead
+                chr -> lastModified = std::move(lastModifiedDate);
+                chr -> header = std::move(headerResponse);
+                chr -> content = std::move(requestedData);
             }
             else { // data in cache exists and is up to date
                 writeHttpResponseToClient(clientFd, chr -> header, chr -> content);
