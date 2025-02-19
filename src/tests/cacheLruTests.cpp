@@ -119,6 +119,70 @@ TEST(CacheTest, InsertMaxAndRemoveMany) {
     ASSERT_EQ(response, nullptr);
 }
 
+TEST(LruTest, InsertPushPopRemoveSimple) {
+    LRU lru;
+
+    lru.push("http://example1.com");
+    lru.push("http://example2.com");
+
+    LruEntry* front = lru.front();
+    LruEntry* back = lru.back();
+
+    ASSERT_NE(front, nullptr);
+    ASSERT_EQ(front-> uri, "http://example1.com");
+    ASSERT_EQ(front-> next, back);
+    ASSERT_EQ(front-> prev, nullptr);
+
+    ASSERT_NE(back, nullptr);
+    ASSERT_EQ(back-> uri, "http://example2.com");
+    ASSERT_EQ(back-> next, nullptr);
+    ASSERT_EQ(back-> prev, front);
+
+    lru.remove(back);
+
+    back = lru.back();
+
+    ASSERT_NE(back, nullptr);
+    ASSERT_EQ(front, back);
+
+    lru.pop();
+
+    ASSERT_TRUE(lru.isEmpty());
+}
+
+TEST(LruTest, InsertPushPopRemoveMany) {
+    LRU lru;
+
+    lru.push("http://example1.com");
+    lru.push("http://example2.com");
+    lru.push("http://example3.com");
+    lru.push("http://example4.com");
+
+    ASSERT_EQ(lru.size(), 4);
+
+    lru.pop();
+
+    LruEntry* front = lru.front();
+    ASSERT_NE(front, nullptr);
+    ASSERT_EQ(front-> uri, "http://example2.com");
+    ASSERT_EQ(front-> prev, nullptr);
+
+    LruEntry* back = lru.back();
+    lru.remove(back);
+    lru.pop();
+
+    front = lru.front();
+
+    ASSERT_NE(front, nullptr);
+    ASSERT_EQ(front-> uri, "http://example3.com");
+    ASSERT_EQ(front-> next, nullptr);
+    ASSERT_EQ(front-> prev, nullptr);
+
+    lru.pop();
+
+    ASSERT_TRUE(lru.isEmpty());
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
