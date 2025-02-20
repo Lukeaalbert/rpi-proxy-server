@@ -20,11 +20,6 @@ int PRINT_MESSAGES = 1;
 
 namespace {
 
-    void usage() {
-        std::cerr << "Usage: ./ProxyServer port_num\n";
-        exit(-1);
-    }
-
     int readALine(int socket_fd, std::string& line) {
         std::string s = std::string();
         int idx = 0;
@@ -150,7 +145,9 @@ void ProxyServer::runServer() {
             requestedData = makeGetRequest(host, "80", uri, headerResponse);
             writeHttpResponseToClient(clientFd, headerResponse, requestedData);
             // edit data in cache to reflect these changes
-            mCache.insert(host+uri, headerResponse, requestedData, lastModifiedDate);
+            // moce semantics to avoid copy of large data strings
+            mCache.insert(host+uri, std::move(headerResponse),
+                std::move(requestedData), std::move(lastModifiedDate));
         }
 
         // close client socket and clear stuff
