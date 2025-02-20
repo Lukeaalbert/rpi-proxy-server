@@ -9,8 +9,8 @@ cache-lru-tests: tests/cacheLruTests.cpp
 	# Run the tests
 	./cache-lru-tests
 
-proxy-server: main.cpp server.h server.cpp cache.hpp
-	g++ ${MY_DEFS} -o proxy-server main.cpp server.cpp cache.hpp
+proxy-server: main.cpp server.h server.cpp
+	g++ ${MY_DEFS} -o proxy-server main.cpp server.cpp
 
 clean:
 	-rm -f proxy-server cache-lru-tests server.o cache.o
