@@ -6,7 +6,7 @@ I wrote this simple experimental proxy server designed specifically for the Rasp
 
 <img width="1072" alt="proxy" src="https://github.com/user-attachments/assets/ae0735d5-3ce1-483e-9fbe-bff303b6bd12" />
 
-As aforementioned, I created a custom cache and LRU from scratch for the server. I decided to stick with a hash map for the underlying data structure of the cache and a doubly linked list for the underlying data structure of the LRU. In addition to storing a resource's cached HTTP response data, the cache hash map also stores a pointer to the node representing that resource in the LRU. This allows for O(1) removal from the LRU, which was important to me because data is removed and re-pushed into the LRU every time it's accessed.
+As aforementioned, I created a cache and LRU from scratch for the server. I decided to stick with a hash map for the underlying data structure of the cache and a doubly linked list for the underlying data structure of the LRU. In addition to storing a resource's cached HTTP response data, the cache hash map also stores a pointer to the node representing that resource in the LRU. This allows for O(1) removal from the LRU, which was important to me because data is removed and re-pushed into the LRU every time it's accessed.
 
 The general flow I designed for this server was:
 1. User makes a GET request.
