@@ -115,6 +115,8 @@ void ProxyServer::runServer() {
         clientRequest = parseClientHttpRequest(clientFd, method, uri, host);
         if (clientRequest.empty() || method.empty() || host.empty() || uri.empty()) {
             std::cerr << "error with request header at " << clientIp << ". skipping...";
+            shutdown(clientFd, SHUT_RDWR);
+            close(clientFd);
             continue;
         }
         if (PRINT_MESSAGES) {
