@@ -1,21 +1,46 @@
 ### Raspberry Pi HTTP Proxy Server
-I wrote this simple experimental proxy server designed specifically for the Raspberry Pi 3 w/2GB of RAM running almost any flavor or Linux. Some important initial notes:
-* Because I wanted to implement a cache and LRU (more on these below), this server is currently only working with HTTP (not HTTPS) GET requests. I'll fix this later, implementing the handling of HTTPS CONNECT requests and skipping over the cache and LRU as a whole, but I really wanted to include these in the first part of this project.
-* This is **not complete** and I will likely continue to revise and add to it over the foreseeable future.
-* Lastly, but most importantly: I know this is likely a naive and not optimal implementation. I built this with almost no knowledge of how proxy servers actually work, and **the motivation for this project was not to build the most perfect product, but to learn and prove to myself that I can be an engineer who imagines an original design and brings it to reality.**
 
-<img width="1072" alt="proxy" src="https://github.com/user-attachments/assets/ae0735d5-3ce1-483e-9fbe-bff303b6bd12" />
+This repository contains a simple experimental HTTP proxy server designed for the **Raspberry Pi 3** with **2GB of RAM**, running almost any Linux distribution.
 
-As aforementioned, I created a cache and LRU from scratch for the server. I decided to stick with a hash map for the underlying data structure of the cache and a doubly linked list for the underlying data structure of the LRU. In addition to storing a resource's cached HTTP response data, the cache hash map also stores a pointer to the node representing that resource in the LRU. This allows for O(1) removal from the LRU, which was important to me because data is removed and re-pushed into the LRU every time it's accessed.
+## Initial Notes
 
-The general flow I designed for this server was:
-1. User makes a GET request.
-2. Server receives and processes request.
-3. Server checks if the resource is in the cache and sends a HEAD request to the resource to find the last modified date.
-4. If the resource is in the cache and it's not stale, the server sends the cached resource back to the client.
-5. If the resource is in the cache but it is stale, the server makes a GET request to the resource, sends the resource to the client, and updates the cache info.
-6. Otherwise, the server makes a GET request to the resource, sends the resource to the client, and inserts the data into the cache.
+- This proxy currently supports only **HTTP GET requests**, as I wanted to implement a caching system with **Least Recently Used (LRU) eviction**. Handling of **HTTPS (CONNECT requests)** will be added in the future, bypassing caching and LRU mechanisms.
+- The project is **not yet complete**, and I plan to continue refining and improving it.
+- Most importantly: This was built as a learning project. While the implementation may not be the most optimized, the goal was to challenge myself, design a system from scratch, and bring an idea to reality.
 
-Compile with **make proxy-server** and run with **./proxy-server [SERVER PORT NUMBER]**.
+## Architecture & Design
 
-Test with **curl -x http:/[server-ip]:[server port number] http://example.com**.
+![Proxy Server](https://github.com/user-attachments/assets/ae0735d5-3ce1-483e-9fbe-bff303b6bd12)
+
+This proxy server includes a **custom-built cache and LRU system**:
+
+- The **cache** is implemented as a **hash map**, mapping requested resources to their cached responses.
+- The **LRU (Least Recently Used) list** is implemented as a **doubly linked list**, tracking access order.
+- Each cached resource entry contains:
+  - The **HTTP response data**.
+  - A **pointer to its position in the LRU list**, allowing for **O(1) eviction** when space is needed.
+
+### Request Handling Flow
+
+1. **Client sends an HTTP GET request** to the proxy.
+2. **Proxy receives and processes the request**.
+3. **Cache lookup**: Proxy checks if the resource is cached.
+4. **Cache validation**: Proxy sends a `HEAD` request to the origin server to check the last modified date.
+5. **If the resource is valid in the cache**, return the cached response.
+6. **If the resource is stale**, fetch a fresh version, update the cache, and return the response.
+7. **If the resource is not cached**, fetch it from the origin server, send it to the client, and store it in the cache.
+
+## Compilation & Usage
+
+1. **Compile the proxy server**:
+   ```sh
+   make proxy-server
+   ```
+2. **Run the proxy server**:
+   ```sh
+   ./proxy-server [SERVER_PORT_NUMBER]
+   ```
+3. **Test with cURL**:
+   ```sh
+   curl -x http://[server-ip]:[server-port] http://example.com
+   ```
