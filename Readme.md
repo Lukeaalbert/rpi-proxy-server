@@ -1,4 +1,4 @@
-### Raspberry Pi HTTP Proxy Server
+# Raspberry Pi HTTP Proxy Server
 
 This repository contains a simple experimental HTTP proxy server designed for the **Raspberry Pi 3** with **2GB of RAM**, running almost any Linux distribution.
 
