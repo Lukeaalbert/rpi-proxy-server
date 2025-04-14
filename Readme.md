@@ -5,7 +5,6 @@ This repository contains a simple experimental HTTP proxy server designed for th
 ## Initial Notes
 
 - This proxy currently supports only **HTTP GET requests**, as I wanted to implement a caching system with **Least Recently Used (LRU) eviction**. Handling of **HTTPS (CONNECT requests)** will be added in the future, bypassing caching and LRU mechanisms.
-- The project is **not yet complete**, and I plan to continue refining and improving it.
 - Most importantly: This was built as a learning project. While the implementation may not be the most optimized, the goal was to challenge myself, design a system from scratch, and bring an idea to reality.
 
 ## Architecture & Design
