@@ -31,7 +31,7 @@ This proxy server includes a **custom-built cache and LRU system**:
 
 ## Compilation & Usage
 
-1. **Compile the proxy server with cmake**:
+1. **Compile the proxy server with CMake**:
    ```sh
    mkdir build
    cd build
