@@ -31,9 +31,12 @@ This proxy server includes a **custom-built cache and LRU system**:
 
 ## Compilation & Usage
 
-1. **Compile the proxy server**:
+1. **Compile the proxy server with cmake**:
    ```sh
-   make proxy-server
+   mkdir build
+   cd build
+   cmake ..
+   make
    ```
 2. **Run the proxy server**:
    ```sh
